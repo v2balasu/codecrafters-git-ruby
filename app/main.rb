@@ -43,7 +43,7 @@ def cat_file(args)
   end
 
   obj = Zlib::Inflate.inflate(raw_file)
-  _header, content = obj.split("\x00")
+  _header, content = obj.split("\x00", 2)
 
   return unless options.include?('-p')
 
