@@ -6,7 +6,7 @@ def main
 
   raise 'Command Not Provided' unless command
 
-  raise "Unknown command #{command}" unless %w[init cat_file hash_object].include?(command)
+  raise "Unknown command #{command}" unless %w[init cat_file hash_object ls_tree].include?(command)
 
   begin
     command_args = ARGV[1..]
@@ -65,6 +65,50 @@ def hash_object(args)
   end
 
   puts hash
+end
+
+def ls_tree(args)
+  *options, tree_sha = args
+
+  raise ArgumentError, 'Invalid SHA' unless tree_sha&.length == 40
+
+  path = ".git/objects/#{tree_sha[0..1]}/#{tree_sha[2..]}"
+
+  raise ArgumentError, 'Invalid SHA' unless File.exist?(path)
+
+  # TODO: Buffered Read
+  buffer = Zlib::Inflate.inflate(File.read(path)).bytes
+
+  header_length = buffer.find_index(0x00) + 1
+  header = buffer.shift(header_length)
+  _, expected_size = header.pack('C*').strip.split(' ')
+
+  raise ArgumentError, 'Invalid content' unless expected_size.to_i == buffer.length
+
+  tree_objects = []
+
+  until buffer.empty?
+    entry_length = buffer.find_index(0x00) + 1
+    entry = buffer.shift(entry_length).pack('C*')
+    mode, name = entry.split(' ').map(&:strip)
+    sha_hash = Digest::SHA1.hexdigest(buffer.shift(20).pack('C*'))
+
+    tree_objects << {
+      mode: mode.rjust(6, '0'),
+      type: mode == '40000' ? 'tree' : 'blob',
+      sha_hash: sha_hash,
+      name: name
+    }
+  end
+
+  if options.include?('--name-only')
+    tree_objects.each { |obj| puts obj[:name] }
+    return
+  end
+
+  tree_objects.each do |obj|
+    puts "#{obj.values[0..2].join("\s")}\t#{obj.values.last}"
+  end
 end
 
 main
