@@ -6,7 +6,7 @@ def main
 
   raise 'Command Not Provided' unless command
 
-  raise "Unknown command #{command}" unless %w[init cat_file hash_object ls_tree].include?(command)
+  raise "Unknown command #{command}" unless %w[init cat_file hash_object ls_tree write_tree].include?(command)
 
   begin
     command_args = ARGV[1..]
@@ -109,6 +109,52 @@ def ls_tree(args)
   tree_objects.each do |obj|
     puts "#{obj.values[0..2].join("\s")}\t#{obj.values.last}"
   end
+end
+
+def write_tree(_args)
+  puts process_dir(Dir.pwd)[:hex_digest]
+end
+
+def process_dir(dirname)
+  tree_entries = []
+
+  Dir.entries(dirname).sort.each do |entry|
+    path = "#{dirname}/#{entry}"
+    is_dir = Dir.exist?(path)
+
+    next if ['.', '..', '.git'].include?(entry)
+
+    entry_mode = is_dir ? '40000' : '100644'
+
+    entry_content = if is_dir
+                      process_dir(path)
+                    else
+                      process_content(File.read(path), 'blob')
+                    end
+
+    tree_entries << "#{entry_mode} #{entry}\0#{entry_content[:binary_digest]}"
+  end
+
+  process_content(tree_entries.join(''), 'tree')
+end
+
+def process_content(content, header_type)
+  entry_content = "#{header_type} #{content.bytes.length}\0#{content}"
+  hex_digest = Digest::SHA1.hexdigest(entry_content)
+  binary_digest = Digest::SHA1.digest(entry_content)
+
+  git_object_dir = File.join(Dir.pwd, '.git', 'objects', hex_digest[0..1])
+
+  Dir.mkdir(git_object_dir) unless Dir.exist?(git_object_dir)
+
+  git_object_path = File.join(git_object_dir, hex_digest[2..])
+
+  File.write(git_object_path, Zlib::Deflate.deflate(entry_content))
+
+  {
+    hex_digest: hex_digest,
+    binary_digest: binary_digest
+  }
 end
 
 main
