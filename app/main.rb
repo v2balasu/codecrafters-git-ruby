@@ -6,7 +6,7 @@ def main
 
   raise 'Command Not Provided' unless command
 
-  raise "Unknown command #{command}" unless %w[init cat_file hash_object ls_tree write_tree].include?(command)
+  raise "Unknown command #{command}" unless %w[init cat_file hash_object ls_tree write_tree commit_tree].include?(command)
 
   begin
     command_args = ARGV[1..]
@@ -109,6 +109,30 @@ def ls_tree(args)
   tree_objects.each do |obj|
     puts "#{obj.values[0..2].join("\s")}\t#{obj.values.last}"
   end
+end
+
+def commit_tree(args)
+  tree_sha = args.shift
+  while !args.empty?
+    option, val = args.shift(2) 
+    if option == '-p' 
+      commit_sha = val 
+    elsif option == '-m' 
+      message = val.lstrip 
+    end
+  end
+
+  raise ArgumentError, "Invalid Args" unless tree_sha && commit_sha && message 
+
+  content = "tree #{tree_sha} 
+  parent #{commit_sha} 
+  author Author <author@email.com> #{Time.now.to_i} +0000 
+  committer Author <author@email.com> #{Time.now.to_i} +0000 
+
+#{message}
+"
+
+  puts process_content(content, 'commit')[:hex_digest]
 end
 
 def write_tree(_args)
