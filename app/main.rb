@@ -6,7 +6,7 @@ def main
 
   raise 'Command Not Provided' unless command
 
-  raise "Unknown command #{command}" unless %w[init cat_file hash_object ls_tree write_tree commit_tree].include?(command)
+  raise "Unknown command #{command}" unless %w[init cat_file hash_object ls_tree write_tree commit_tree clone].include?(command)
 
   begin
     command_args = ARGV[1..]
@@ -137,6 +137,14 @@ end
 
 def write_tree(_args)
   puts process_dir(Dir.pwd)[:hex_digest]
+end
+
+def clone(args) 
+  path, dir = args 
+
+  Dir.mkdir(dir) unless Dir.exist?(dir)
+
+  pp path
 end
 
 def process_dir(dirname)
