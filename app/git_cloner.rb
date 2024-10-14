@@ -16,14 +16,21 @@ class GitCloner
     def execute(args)
       git_repo, dir = args
       base_uri = URI(git_repo + '/')
+      create_git_dir(dir)
 
       refs = discover_refs(base_uri)
-      pack_file_content = download_ref(base_uri, refs.last[:sha])
-      results = unpack_content(pack_file_content)
+      refs.each do |ref|
+        pack_file_content = download_ref(base_uri, ref[:sha])
+        results = unpack_content(pack_file_content)
 
-      create_git_dir(dir)
-      write_git_objects(results[:objects], dir)
-      write_files(results[:objects], dir)
+        write_git_objects(results[:objects], dir)
+        write_files(results[:objects], dir)
+
+        puts "Procssed ref #{ref[:sha]}"
+      rescue StandardError => e
+        puts "Could not process ref #{ref[:sha]}, #{e.message}"
+        next
+      end
     end
 
     private
@@ -135,7 +142,7 @@ class GitCloner
       stream = StringIO.open(content)
 
       # Include 8 byte Ack
-      raise 'Invalid Pack File' unless stream.read(12).end_with?('PACK')
+      raise 'Invalid Pack File' unless stream.read(12)&.end_with?('PACK')
 
       version_num = stream.read(4).unpack1('N')
       raise 'Invalid Version Num' unless [1, 2].include?(version_num)
