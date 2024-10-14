@@ -1,12 +1,14 @@
 require 'zlib'
 require 'digest'
+require_relative 'git_cloner'
 
 def main
   command = ARGV[0]&.downcase&.gsub('-', '_')
 
   raise 'Command Not Provided' unless command
 
-  raise "Unknown command #{command}" unless %w[init cat_file hash_object ls_tree write_tree commit_tree clone].include?(command)
+  raise "Unknown command #{command}" unless %w[init cat_file hash_object ls_tree write_tree commit_tree
+                                               clone].include?(command)
 
   begin
     command_args = ARGV[1..]
@@ -113,21 +115,21 @@ end
 
 def commit_tree(args)
   tree_sha = args.shift
-  while !args.empty?
-    option, val = args.shift(2) 
-    if option == '-p' 
-      commit_sha = val 
-    elsif option == '-m' 
-      message = val.lstrip 
+  until args.empty?
+    option, val = args.shift(2)
+    if option == '-p'
+      commit_sha = val
+    elsif option == '-m'
+      message = val.lstrip
     end
   end
 
-  raise ArgumentError, "Invalid Args" unless tree_sha && commit_sha && message 
+  raise ArgumentError, 'Invalid Args' unless tree_sha && commit_sha && message
 
-  content = "tree #{tree_sha} 
-  parent #{commit_sha} 
-  author Author <author@email.com> #{Time.now.to_i} +0000 
-  committer Author <author@email.com> #{Time.now.to_i} +0000 
+  content = "tree #{tree_sha}
+  parent #{commit_sha}
+  author Author <author@email.com> #{Time.now.to_i} +0000
+  committer Author <author@email.com> #{Time.now.to_i} +0000
 
 #{message}
 "
@@ -139,12 +141,8 @@ def write_tree(_args)
   puts process_dir(Dir.pwd)[:hex_digest]
 end
 
-def clone(args) 
-  path, dir = args 
-
-  Dir.mkdir(dir) unless Dir.exist?(dir)
-
-  pp path
+def clone(args)
+  GitCloner.execute(args)
 end
 
 def process_dir(dirname)
