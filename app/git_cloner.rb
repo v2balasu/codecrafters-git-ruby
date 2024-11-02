@@ -221,25 +221,22 @@ class GitCloner
     end
 
     def extract_copy_length_and_offset(instruction, stream)
-      octects = []
-      octects << stream.read(1).ord if instruction & 0b01000000 == 0b01000000
-      octects << stream.read(1).ord if instruction & 0b00100000 == 0b00100000
-      octects << stream.read(1).ord if instruction & 0b00010000 == 0b00010000
-      octects << stream.read(1).ord if instruction & 0b00001000 == 0b00001000
-      octects << stream.read(1).ord if instruction & 0b00000100 == 0b00000100
-      octects << stream.read(1).ord if instruction & 0b00000010 == 0b00000010
-      octects << stream.read(1).ord if instruction & 0b00000001 == 0b00000001
+      @length_bitmasks ||= [0b01000000, 0b00100000, 0b00010000].reverse
+      @offset_bitmasks ||= [0b00001000, 0b00000100, 0b00000010, 0b00000001].reverse
 
-      length = (0 << 24)
-      length |= (octects.pop << 16) if instruction & 0b01000000 == 0b01000000
-      length |= (octects.pop << 8) if instruction & 0b00100000 == 0b00100000
-      length |= octects.pop if instruction & 0b00010000 == 0b00010000
+      offset = 0
+      @offset_bitmasks.each_with_index do |mask, idx|
+        next unless instruction & mask == mask
 
-      offset = (0 << 32)
-      offset |= (octects.pop << 24) if instruction & 0b00001000 == 0b00001000
-      offset |= (octects.pop << 16) if instruction & 0b00000100 == 0b00000100
-      offset |= (octects.pop << 8) if instruction & 0b00000010 == 0b00000010
-      offset |= octects.pop if instruction & 0b00000001 == 0b00000001
+        offset |= (stream.read(1).ord << (8 * idx))
+      end
+
+      length = 0
+      @length_bitmasks.each_with_index do |mask, idx|
+        next unless instruction & mask == mask
+
+        length |= (stream.read(1).ord << (8 * idx))
+      end
 
       [length, offset]
     end
